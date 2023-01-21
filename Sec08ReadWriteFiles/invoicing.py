@@ -49,35 +49,59 @@ def next_invoice_number(invoice_number: str) -> str:
 
 def record_invoice(invoice_file: TextIO,
                    company: str,
-                   amount: float) -> None:
+                   amount: float, last_line_ptr: int = 0) -> int:
     """Create a new invoice number, and write it to a file on disk.
 
     :param invoice_file: An open text file, opened using r+.
     :param company: The name of the company being invoiced.
     :param amount: The amount of the invoice.
+    :param last_line_ptr: The position of the start of the last line in the file,
+    this will be obtained by previous call to `record_invoice`
+    :return: The position of the start of the last line in the file.
+    This can be used as subsequent calls to `record_invoice`
     """
+    # last_line_ptr = 0    #removed as its now added as a parameter with default value
+    invoice_file.seek(last_line_ptr, SEEK_SET)
+    last_row = ''
+    for line in invoice_file:
+        print("*", end='')  # TODO delete after testing
+        last_row = line
+    if last_row:
+        invoice_number = last_row.split('\t')[0]
+        new_invoice_number = next_invoice_number(invoice_number)
+    else:
+        year = get_year()
+        new_invoice_number = f'{year}-{1:04d}'
+
+    last_line_ptr = invoice_file.tell()
+    print(f'{new_invoice_number}\t{company}\t{amount}', file=invoice_file)
+    return last_line_ptr
 
 
 # Test code:
-current_year = get_year()
-test_data = [
-    ('2019-0005', (2019, 5), f'{current_year}-0001'),
-    (f'{current_year}-8514', (current_year, 8514), f'{current_year}-8515'),
-    (f'{current_year}-0001', (current_year, 1), f'{current_year}-0002'),
-    (f'{current_year}-0023', (current_year, 23), f'{current_year}-0024'),
-]
-
-for test_string, result, next_number in test_data:
-    parts = parse_invoice_number(test_string)
-    if parts == result:
-        print(f'{test_string} parsed successfully')
-    else:
-        print(f'{test_string} failed to parse. Expected {result} got {parts}')
-
-    new_number = next_invoice_number(test_string)
-    if next_number == new_number:
-        print(f'New number {new_number} generated correctly for {test_string}')
-    else:
-        print(f'New number {new_number} is not correct for {test_string}')
-
-    print('-' * 80)
+# current_year = get_year()
+# test_data = [
+#     ('2019-0005', (2019, 5), f'{current_year}-0001'),
+#     (f'{current_year}-8514', (current_year, 8514), f'{current_year}-8515'),
+#     (f'{current_year}-0001', (current_year, 1), f'{current_year}-0002'),
+#     (f'{current_year}-0023', (current_year, 23), f'{current_year}-0024'),
+# ]
+#
+# for test_string, result, next_number in test_data:
+#     parts = parse_invoice_number(test_string)
+#     if parts == result:
+#         print(f'{test_string} parsed successfully')
+#     else:
+#         print(f'{test_string} failed to parse. Expected {result} got {parts}')
+#
+#     new_number = next_invoice_number(test_string)
+#     if next_number == new_number:
+#         print(f'New number {new_number} generated correctly for {test_string}')
+#     else:
+#         print(f'New number {new_number} is not correct for {test_string}')
+#
+#     print('-' * 80)
+data_file = 'invoices.csv'
+with open(data_file, 'r+') as invoices:
+    last_line = record_invoice(invoices, "ACME Roadrunner", 18.40)
+    record_invoice(invoices, "Squirrel Storage", 320.55, last_line)
